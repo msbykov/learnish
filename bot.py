@@ -1,53 +1,47 @@
 # -*- coding: utf-8 -*-
-import random
 import telegram
 from telegram.ext import Updater, CommandHandler
-import datetime
+import random
 import time
 import requests
 from bs4 import BeautifulSoup
 
-# Функция для получения списка наиболее употребляемых слов английского языка
-def get_common_words():
-    url = "https://www.ef.com/wwen/english-resources/english-vocabulary/top-1000-words/"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, "html.parser")
-    table = soup.find("table", {"class": "dataTable"}) # Находим таблицу со словами
-    words = []
-    for row in table.find_all("tr")[1:]: # Проходим по всем строкам таблицы, кроме заголовка
-        word = row.find_all("td")[1].get_text().lower() # Берем второй столбец таблицы (слово)
-        words.append(word)
-    return words
 
-# Список из наиболее употребляемых слов английского языка
-words = get_common_words()
-
-# Словарь для хранения времени отправки сообщения для каждого пользователя
+# Словарь с пользователями и временем последней отправки слов
 user_time = {}
 
-# Словарь для хранения слов, отправленных каждому пользователю
+# Словарь с пользователями и списком слов, которые они должны выучить
 user_words = {}
 
-# Функция для получения транскрипции и значений слова с помощью API Merriam-Webster
-def get_word_info(word):
-    api_key = "your_api_key" # Замените на свой API-ключ от Merriam-Webster
-    url = "https://www.dictionaryapi.com/api/v3/references/learners/json/{word.lower()}?key={api_key}"
-    response = requests.get(url)
-    if response.status_code != 200:
-        return None, None
-    data = response.json()
-    if isinstance(data[0], str):
-        return None, None
-    transcription = data[0]["hwi"]["prs"][0]["mw"] if data[0].get("hwi") and data[0]["hwi"].get("prs") else ""
-    meanings = ", ".join([d for d in data[0].get("def")[0].get("sseq")[0][0][1].get("dt")[0][1]])
-    return transcription, meanings
 
-# Функция для отправки сообщения с 10 случайными словами
+# Функция для получения информации о слове с помощью API словаря
+def get_word_info(selected_word):
+    url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{selected_word}"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+
+        if len(data) > 0 and 'meanings' in data[0]:
+            meanings = data[0]['meanings'][0]['definitions'][0]['definition']
+            phonetics = data[0]['phonetics'][0]['text']
+            return phonetics, meanings
+
+    return None, None
+
+
+# Функция для отправки сообщения с меню
+def send_menu(bot, update):
+    chat_id = update.message.chat_id
+    bot.send_photo(chat_id=chat_id, photo=open('menu.jpg', 'rb'))
+
+
+# Функция для отправки сообщения со случайными словами
 def send_words(bot, job):
     # Получаем данные о пользователе из контекста задачи
     user_id = job.context['user_id']
     chat_id = job.context['chat_id']
-   
+
     # Проверяем, прошло ли уже 24 часа с момента последней отправки слов пользователю
     if user_id in user_time and time.time() - user_time[user_id] < 86400:
         bot.send_message(chat_id=chat_id, text="Вы уже получили слова сегодня. Попробуйте позже.")
