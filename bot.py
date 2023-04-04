@@ -7,6 +7,8 @@ import requests
 from bs4 import BeautifulSoup
 
 
+user_id = {} 
+
 # Словарь с пользователями и временем последней отправки слов
 user_time = {}
 
@@ -42,10 +44,6 @@ def send_words(bot, job):
     user_id = job.context['user_id']
     chat_id = job.context['chat_id']
 
-    # Проверяем, прошло ли уже 24 часа с момента последней отправки слов пользователю
-    if user_id in user_time and time.time() - user_time[user_id] < 86400:
-        bot.send_message(chat_id=chat_id, text="Вы уже получили слова сегодня. Попробуйте позже.")
-        return
 
     # Выбираем 10 случайных слов из списка words
     words_to_send = random.sample(words, 10)
@@ -65,6 +63,10 @@ def send_words(bot, job):
 
     # Сохраняем время отправки сообщения для пользователя
     user_time[user_id] = time.time()
+
+def start_message(update, context):
+    """Отправляет приветственное сообщение при запуске бота"""
+    context.bot.send_message(chat_id=update.message.chat_id, text="Привет! Я Learnish бот. Я помогу тебе изучать новые слова на английском языке.")
     
 # Функция для обработки команды /start
 def start(update, context):
@@ -84,10 +86,6 @@ def get_words(update, context):
     chat_id = update.message.chat_id
     user_id = update.message.from_user.id
 
-# Проверяем, прошло ли уже 24 часа с момента последней отправки слов пользователю
-if user_id in user_time and time.time() - user_time[user_id] < 86400:
-    bot.send_message(chat_id=chat_id, text="Вы уже получили слова сегодня. Попробуйте снова завтра.")
-else:
     # Отправляем пользователю 10 случайных слов
     send_words(bot, context.job_queue.run_repeating(send_words, interval=86400, first=10, context={"user_id": user_id, "chat_id": chat_id}))
 
@@ -111,8 +109,6 @@ words_handler = CommandHandler('words', get_words)
 updater.dispatcher.add_handler(start_handler)
 updater.dispatcher.add_handler(words_handler)
 
-# Регистрируем обработчик неизвестных команд
-updater.dispatcher.add_handler(MessageHandler(Filters.command, unknown))
 
 # Функция для обработки команды /help
 def help_command(update, context):
@@ -125,11 +121,6 @@ def words_command(update, context):
 
 # Получаем данные о пользователе из объекта update
 user_id = update.message.chat_id
-
-# Проверяем, прошло ли уже 24 часа с момента последней отправки слов пользователю
-if user_id in user_time and time.time() - user_time[user_id] < 86400:
-    update.message.reply_text("Вы уже получили слова сегодня. Попробуйте еще раз завтра.")
-    return
 
 # Получаем 10 случайных слов из списка words
 user_words[user_id] = random.sample(words, 10)
@@ -148,11 +139,6 @@ user_id = update.message.chat_id
 
 # Получаем слово из сообщения пользователя
 word = " ".join(context.args).lower()
-
-# Проверяем, отправлялось ли слово пользователю ранее
-if user_id not in user_words or word not in user_words[user_id]:
-    update.message.reply_text("Вы не получали слово {word} сегодня. Напишите /words, чтобы получить новые слова.")
-    return
 
 # Получаем транскрипцию и значения слова
 transcription, meanings = get_word_info(word)
@@ -216,10 +202,6 @@ def message(update, context):
     text = update.message.text
     user_id = update.message.from_user.id
 
-# Проверяем, не является ли сообщение командой, иначе игнорируем его
-if text.startswith("/") or not user_id in user_time:
-    return
-
 # Добавляем слово в словарь для данного пользователя
 if user_id in user_words:
     user_words[user_id].append(text.lower())
@@ -231,5 +213,5 @@ def unknown(update, context):
     context.bot.send_message(chat_id=update.message.chat_id, text="Я не понимаю эту команду.\n\nДля начала работы отправь мне команду /words.")
 
 # Создаем объект бота и добавляем обработчики команд и сообщений
-updater = Updater(token="your_token", use_context=True)
+updater = Updater(token="6100727034:AAHEb6fhqfIsPS1Po-9VNILbgP40mOal1yU", use_context=True)
 dispatcher = updater.dispatcher
